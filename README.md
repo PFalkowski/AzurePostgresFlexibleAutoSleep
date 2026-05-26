@@ -38,6 +38,7 @@ See ADR-0056 in the consuming project (`GeopoliticsSim/docs/adr/0056-postgres-au
 |---|---|
 | Architectural decision | ✅ Frozen in ADR-0056 |
 | NuGet uniqueness verified | ✅ 0 hits for "postgres auto sleep" / "postgres idle stop" on 2026-05-26 |
+| NuGet package ID reserved | ⚠️ Not yet — reserve under PFalkowski's nuget.org account as step 1 |
 | Implementation plan | ✅ [`PLAN.md`](PLAN.md) |
 | Code | ❌ Not started |
 | Tests | ❌ Not started |

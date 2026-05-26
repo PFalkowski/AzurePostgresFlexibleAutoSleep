@@ -401,11 +401,11 @@ Once `0.1.0` is on NuGet.org, the GeopoliticsSim consumer needs:
 
 That work happens in a follow-up PR on the consumer repo, NOT here.
 
-## Questions to surface back to the operator (do not invent answers)
+## Operator answers (resolved 2026-05-26)
 
-- **GitHub org / user for the new repo.** Plan assumes `github.com/PFalkowski/AzurePostgresFlexibleAutoSleep`. Confirm before `gh repo create`.
-- **Public or private repo?** ADR-0056 said open-source MIT, public. Confirm — once public, history is hard to retract.
-- **NuGet account ownership.** Who owns the `AzurePostgresFlexibleAutoSleep` NuGet package ID? Reserve it under the operator's NuGet.org account before first push.
-- **Initial version.** Plan says `0.1.0`. Confirm or override.
+- ✅ **GitHub repo:** `github.com/PFalkowski/AzurePostgresFlexibleAutoSleep` — already created, public, MIT-licensed, master branch tracks origin.
+- ✅ **Visibility:** public.
+- ⚠️ **NuGet account:** owned by `PFalkowski` on nuget.org. The package ID `AzurePostgresFlexibleAutoSleep` is **not yet reserved**. Reserve it as part of step 1 of the implementation order — easiest path is to `dotnet pack` a placeholder `0.0.1-reserve` and `dotnet nuget push` it under the operator's API key, then continue normal development. Do this BEFORE the `release.yml` workflow runs against a `v*` tag.
+- ✅ **Initial version:** `0.1.0`.
 
-When you've answered these, you can start at "Implementation order" step 1. Good luck.
+Start at "Implementation order" step 1. Good luck.
