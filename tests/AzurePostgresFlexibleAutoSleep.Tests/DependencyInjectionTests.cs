@@ -32,6 +32,29 @@ public class DependencyInjectionTests
         Assert.NotNull(sp.GetRequiredService<IOptions<AzurePostgresAutoSleepOptions>>().Value);
     }
 
+    [Theory]
+    [InlineData(nameof(AzurePostgresAutoSleepOptions.WakePollInterval))]
+    [InlineData(nameof(AzurePostgresAutoSleepOptions.StopCheckInterval))]
+    [InlineData(nameof(AzurePostgresAutoSleepOptions.StateCacheLifetime))]
+    public void Options_validation_rejects_non_positive_intervals(string property)
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAzurePostgresAutoSleep(o =>
+        {
+            o.ResourceId = "/subscriptions/x/resourceGroups/y/providers/Microsoft.DBforPostgreSQL/flexibleServers/z";
+            switch (property)
+            {
+                case nameof(AzurePostgresAutoSleepOptions.WakePollInterval): o.WakePollInterval = TimeSpan.Zero; break;
+                case nameof(AzurePostgresAutoSleepOptions.StopCheckInterval): o.StopCheckInterval = TimeSpan.Zero; break;
+                case nameof(AzurePostgresAutoSleepOptions.StateCacheLifetime): o.StateCacheLifetime = TimeSpan.Zero; break;
+            }
+        });
+
+        using var sp = services.BuildServiceProvider();
+        Assert.Throws<OptionsValidationException>(() => sp.GetRequiredService<IOptions<AzurePostgresAutoSleepOptions>>().Value);
+    }
+
     [Fact]
     public void Options_validation_rejects_blank_resource_id()
     {

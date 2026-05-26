@@ -12,8 +12,8 @@ public class PostgresLifecycleClientTests
     [InlineData("Stopping", PostgresServerState.Stopping)]
     [InlineData("Stopped", PostgresServerState.Stopped)]
     [InlineData("Disabled", PostgresServerState.Stopped)]
-    [InlineData("Updating", PostgresServerState.Ready)]
-    [InlineData("Dropping", PostgresServerState.Failed)]
+    [InlineData("Updating", PostgresServerState.Starting)]
+    [InlineData("Dropping", PostgresServerState.Dropping)]
     [InlineData("WhoKnows", PostgresServerState.Unknown)]
     public void MapState_translates_arm_states(string armState, PostgresServerState expected)
     {

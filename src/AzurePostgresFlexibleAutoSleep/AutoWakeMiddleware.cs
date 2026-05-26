@@ -1,3 +1,4 @@
+using Azure;
 using AzurePostgresFlexibleAutoSleep.Activity;
 using AzurePostgresFlexibleAutoSleep.Lifecycle;
 using Microsoft.AspNetCore.Http;
@@ -41,17 +42,36 @@ public sealed class AutoWakeMiddleware
             await _lifecycle.EnsureAwakeAsync(context.RequestAborted).ConfigureAwait(false);
             _activity.RecordActivity();
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (TimeoutException ex)
         {
-            _logger.LogWarning(ex, "Wake timed out for request {Path}.", context.Request.Path);
-            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-            context.Response.Headers.RetryAfter = "60";
-            context.Response.ContentType = "application/json";
-            await context.Response.WriteAsync("{\"error\":\"database wake timed out\"}").ConfigureAwait(false);
+            await WriteWakeUnavailableAsync(context, ex, "database wake timed out").ConfigureAwait(false);
+            return;
+        }
+        catch (RequestFailedException ex)
+        {
+            await WriteWakeUnavailableAsync(context, ex, "database wake failed").ConfigureAwait(false);
+            return;
+        }
+        catch (InvalidOperationException ex)
+        {
+            await WriteWakeUnavailableAsync(context, ex, "database is unavailable").ConfigureAwait(false);
             return;
         }
 
         await _next(context).ConfigureAwait(false);
+    }
+
+    private async Task WriteWakeUnavailableAsync(HttpContext context, Exception ex, string message)
+    {
+        _logger.LogWarning(ex, "Wake failed for request {Path}: {Message}", context.Request.Path, message);
+        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        context.Response.Headers.RetryAfter = "60";
+        context.Response.ContentType = "application/json";
+        await context.Response.WriteAsync($"{{\"error\":\"{message}\"}}").ConfigureAwait(false);
     }
 
     private bool IsExempt(PathString path)

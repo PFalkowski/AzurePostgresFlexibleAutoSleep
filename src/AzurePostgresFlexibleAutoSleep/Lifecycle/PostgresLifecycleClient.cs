@@ -52,6 +52,11 @@ public sealed class PostgresLifecycleClient : IPostgresLifecycleClient
             {
                 return;
             }
+            if (state == PostgresServerState.Dropping)
+            {
+                throw new InvalidOperationException(
+                    $"Postgres flexible server '{_options.ResourceId}' is being deleted; cannot bring it online.");
+            }
 
             if (state is PostgresServerState.Stopped or PostgresServerState.Failed or PostgresServerState.Unknown)
             {
@@ -101,24 +106,29 @@ public sealed class PostgresLifecycleClient : IPostgresLifecycleClient
         using var timeoutCts = new CancellationTokenSource(_options.WakeTimeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
 
-        while (!linked.IsCancellationRequested)
+        try
         {
-            _cache.Invalidate();
-            var state = await _cache.GetAsync(FetchStateFromArmAsync, linked.Token).ConfigureAwait(false);
-            if (predicate(state))
+            while (true)
             {
-                return;
+                _cache.Invalidate();
+                var state = await _cache.GetAsync(FetchStateFromArmAsync, linked.Token).ConfigureAwait(false);
+                if (state == PostgresServerState.Dropping)
+                {
+                    throw new InvalidOperationException(
+                        $"Postgres flexible server '{_options.ResourceId}' is being deleted; cannot bring it online.");
+                }
+                if (predicate(state))
+                {
+                    return;
+                }
+                await Task.Delay(_options.WakePollInterval, _clock, linked.Token).ConfigureAwait(false);
             }
-            await Task.Delay(_options.WakePollInterval, _clock, linked.Token).ConfigureAwait(false);
         }
-
-        if (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !ct.IsCancellationRequested)
         {
             throw new TimeoutException(
                 $"Postgres flexible server '{_options.ResourceId}' did not reach the expected state within {_options.WakeTimeout}.");
         }
-
-        ct.ThrowIfCancellationRequested();
     }
 
     private async Task<PostgresServerState> FetchStateFromArmAsync(CancellationToken ct)
@@ -135,8 +145,8 @@ public sealed class PostgresLifecycleClient : IPostgresLifecycleClient
         "Stopping" => PostgresServerState.Stopping,
         "Stopped" => PostgresServerState.Stopped,
         "Disabled" => PostgresServerState.Stopped,
-        "Updating" => PostgresServerState.Ready,
-        "Dropping" => PostgresServerState.Failed,
+        "Updating" => PostgresServerState.Starting,
+        "Dropping" => PostgresServerState.Dropping,
         _ => PostgresServerState.Unknown,
     };
 }

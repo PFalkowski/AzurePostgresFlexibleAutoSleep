@@ -79,6 +79,58 @@ public class AutoWakeMiddlewareTests
     }
 
     [Fact]
+    public async Task Arm_request_failure_returns_503()
+    {
+        var (mw, _, _, nextCount) = Build(DefaultOptions(),
+            new FakePostgresLifecycleClient
+            {
+                State = PostgresServerState.Stopped,
+                EnsureAwakeException = new Azure.RequestFailedException(403, "auth failed"),
+            });
+        var ctx = NewContext();
+
+        await mw.InvokeAsync(ctx);
+
+        Assert.Equal(0, nextCount[0]);
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, ctx.Response.StatusCode);
+        Assert.Equal("60", ctx.Response.Headers.RetryAfter);
+    }
+
+    [Fact]
+    public async Task Dropping_resource_returns_503_not_500()
+    {
+        var (mw, _, _, nextCount) = Build(DefaultOptions(),
+            new FakePostgresLifecycleClient
+            {
+                State = PostgresServerState.Dropping,
+                EnsureAwakeException = new InvalidOperationException("being deleted"),
+            });
+        var ctx = NewContext();
+
+        await mw.InvokeAsync(ctx);
+
+        Assert.Equal(0, nextCount[0]);
+        Assert.Equal(StatusCodes.Status503ServiceUnavailable, ctx.Response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Client_disconnect_is_not_swallowed()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+        var (mw, _, _, _) = Build(DefaultOptions(),
+            new FakePostgresLifecycleClient
+            {
+                State = PostgresServerState.Stopped,
+                EnsureAwakeException = new OperationCanceledException(cts.Token),
+            });
+        var ctx = NewContext();
+        ctx.RequestAborted = cts.Token;
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => mw.InvokeAsync(ctx));
+    }
+
+    [Fact]
     public async Task Wake_timeout_returns_503_with_retry_after()
     {
         var (mw, _, _, nextCount) = Build(DefaultOptions(),

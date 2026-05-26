@@ -47,4 +47,17 @@ public sealed class ActivityCommandInterceptor : DbCommandInterceptor
         _tracker.RecordActivity();
         return base.ScalarExecutedAsync(command, eventData, result, cancellationToken);
     }
+
+    public override void CommandFailed(DbCommand command, CommandErrorEventData eventData)
+    {
+        _tracker.RecordActivity();
+        base.CommandFailed(command, eventData);
+    }
+
+    public override Task CommandFailedAsync(
+        DbCommand command, CommandErrorEventData eventData, CancellationToken cancellationToken = default)
+    {
+        _tracker.RecordActivity();
+        return base.CommandFailedAsync(command, eventData, cancellationToken);
+    }
 }

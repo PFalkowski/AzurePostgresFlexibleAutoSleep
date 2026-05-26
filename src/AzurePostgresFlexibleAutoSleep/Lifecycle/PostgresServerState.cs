@@ -8,4 +8,5 @@ public enum PostgresServerState
     Ready,
     Stopping,
     Failed,
+    Dropping,
 }

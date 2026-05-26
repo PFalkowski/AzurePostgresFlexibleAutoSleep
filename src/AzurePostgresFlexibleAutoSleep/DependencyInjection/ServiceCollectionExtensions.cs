@@ -25,7 +25,16 @@ public static class ServiceCollectionExtensions
                 "AzurePostgresAutoSleepOptions.IdleThreshold must be positive.")
             .Validate(
                 opts => opts.WakeTimeout > TimeSpan.Zero,
-                "AzurePostgresAutoSleepOptions.WakeTimeout must be positive.");
+                "AzurePostgresAutoSleepOptions.WakeTimeout must be positive.")
+            .Validate(
+                opts => opts.WakePollInterval > TimeSpan.Zero,
+                "AzurePostgresAutoSleepOptions.WakePollInterval must be positive.")
+            .Validate(
+                opts => opts.StopCheckInterval > TimeSpan.Zero,
+                "AzurePostgresAutoSleepOptions.StopCheckInterval must be positive.")
+            .Validate(
+                opts => opts.StateCacheLifetime > TimeSpan.Zero,
+                "AzurePostgresAutoSleepOptions.StateCacheLifetime must be positive.");
 
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IDbActivityTracker, DbActivityTracker>();
