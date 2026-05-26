@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/SampleWebApi/SampleWebApi.csproj" />
+  </Folder>
   <Folder Name="/src/">
     <Project Path="src/AzurePostgresFlexibleAutoSleep/AzurePostgresFlexibleAutoSleep.csproj" />
   </Folder>
