@@ -10,6 +10,9 @@
     <IsPackable>true</IsPackable>
   </PropertyGroup>
   <ItemGroup>
+    <InternalsVisibleTo Include="AzurePostgresFlexibleAutoSleep.Tests" />
+  </ItemGroup>
+  <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Azure.Identity" />
     <PackageReference Include="Azure.ResourceManager.PostgreSql" />
