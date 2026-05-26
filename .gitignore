@@ -1,0 +1,52 @@
+## Visual Studio / .NET
+bin/
+obj/
+out/
+artifacts/
+nupkgs/
+*.user
+*.suo
+*.userprefs
+*.sln.docstates
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+## Build output
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Bb]uild/
+[Ll]og/
+[Ll]ogs/
+
+## Test results
+TestResults/
+[Tt]est[Rr]esults*/
+*.trx
+*.coverage
+coverage*.json
+coverage*.xml
+coverage*.info
+
+## NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+!**/packages/build/
+
+## Local secrets
+appsettings.Development.json
+appsettings.Local.json
+*.local.json
+secrets.json
+.env
+.env.local
+
+## OS
+.DS_Store
+Thumbs.db
