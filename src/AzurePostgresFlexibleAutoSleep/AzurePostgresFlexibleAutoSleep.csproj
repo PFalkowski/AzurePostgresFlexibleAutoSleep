@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>AzurePostgresFlexibleAutoSleep</RootNamespace>
+    <AssemblyName>AzurePostgresFlexibleAutoSleep</AssemblyName>
+    <PackageId>AzurePostgresFlexibleAutoSleep</PackageId>
+    <Description>ASP.NET Core middleware that stops an Azure Postgres Flexible Server after a configurable idle period and starts it on-demand when a request arrives.</Description>
+    <PackageTags>azure;postgres;postgresql;flexible-server;aspnetcore;cost-optimization</PackageTags>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IsPackable>true</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    <PackageReference Include="Azure.Identity" />
+    <PackageReference Include="Azure.ResourceManager.PostgreSql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Polly" />
+  </ItemGroup>
+</Project>
