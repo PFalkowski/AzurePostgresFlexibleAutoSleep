@@ -2,12 +2,19 @@ namespace AzurePostgresFlexibleAutoSleep.Activity;
 
 public sealed class DbActivityTracker : IDbActivityTracker
 {
-    private long _lastActivityUtcTicks = DateTime.UtcNow.Ticks;
+    private readonly TimeProvider _clock;
+    private long _lastActivityUtcTicks;
+
+    public DbActivityTracker(TimeProvider? clock = null)
+    {
+        _clock = clock ?? TimeProvider.System;
+        _lastActivityUtcTicks = _clock.GetUtcNow().UtcTicks;
+    }
 
     public DateTimeOffset LastActivity =>
         new(Interlocked.Read(ref _lastActivityUtcTicks), TimeSpan.Zero);
 
-    public void RecordActivity() => RecordActivityAt(DateTimeOffset.UtcNow);
+    public void RecordActivity() => RecordActivityAt(_clock.GetUtcNow());
 
     internal void RecordActivityAt(DateTimeOffset timestamp)
     {
