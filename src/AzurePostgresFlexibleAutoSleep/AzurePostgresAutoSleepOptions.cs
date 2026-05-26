@@ -6,7 +6,7 @@ public sealed class AzurePostgresAutoSleepOptions
 {
     public bool Enabled { get; set; } = true;
 
-    public required string ResourceId { get; init; }
+    public required string ResourceId { get; set; }
 
     public TimeSpan IdleThreshold { get; set; } = TimeSpan.FromMinutes(15);
 

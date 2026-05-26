@@ -1,0 +1,39 @@
+using AzurePostgresFlexibleAutoSleep.Activity;
+using AzurePostgresFlexibleAutoSleep.Lifecycle;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
+
+namespace AzurePostgresFlexibleAutoSleep.DependencyInjection;
+
+public static class ServiceCollectionExtensions
+{
+    public static IServiceCollection AddAzurePostgresAutoSleep(
+        this IServiceCollection services,
+        Action<AzurePostgresAutoSleepOptions> configure)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(configure);
+
+        services.AddOptions<AzurePostgresAutoSleepOptions>()
+            .Configure(configure)
+            .Validate(
+                opts => !string.IsNullOrWhiteSpace(opts.ResourceId),
+                "AzurePostgresAutoSleepOptions.ResourceId must be set.")
+            .Validate(
+                opts => opts.IdleThreshold > TimeSpan.Zero,
+                "AzurePostgresAutoSleepOptions.IdleThreshold must be positive.")
+            .Validate(
+                opts => opts.WakeTimeout > TimeSpan.Zero,
+                "AzurePostgresAutoSleepOptions.WakeTimeout must be positive.");
+
+        services.TryAddSingleton(TimeProvider.System);
+        services.TryAddSingleton<IDbActivityTracker, DbActivityTracker>();
+        services.TryAddSingleton<IPostgresLifecycleClient, PostgresLifecycleClient>();
+        services.TryAddSingleton<IDbWaker, DbWaker>();
+        services.TryAddSingleton<ActivityCommandInterceptor>();
+        services.AddHostedService<AutoStopHostedService>();
+
+        return services;
+    }
+}
