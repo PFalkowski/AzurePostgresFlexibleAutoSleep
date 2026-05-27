@@ -34,15 +34,26 @@ public static class ServiceCollectionExtensions
                 "AzurePostgresAutoSleepOptions.StopCheckInterval must be positive.")
             .Validate(
                 opts => opts.StateCacheLifetime > TimeSpan.Zero,
-                "AzurePostgresAutoSleepOptions.StateCacheLifetime must be positive.");
+                "AzurePostgresAutoSleepOptions.StateCacheLifetime must be positive.")
+            .Validate(
+                opts => opts.StartupWakeTimeout > TimeSpan.Zero,
+                "AzurePostgresAutoSleepOptions.StartupWakeTimeout must be positive.");
 
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IDbActivityTracker, DbActivityTracker>();
         services.TryAddSingleton<IPostgresLifecycleClient, PostgresLifecycleClient>();
         services.TryAddSingleton<IDbWaker, DbWaker>();
         services.TryAddSingleton<ActivityCommandInterceptor>();
+        services.AddHostedService<StartupWakeHostedService>();
         services.AddHostedService<AutoStopHostedService>();
 
+        return services;
+    }
+
+    public static IServiceCollection WakeOnApplicationStartup(this IServiceCollection services)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.Configure<AzurePostgresAutoSleepOptions>(o => o.WakeOnStartup = true);
         return services;
     }
 }

@@ -20,5 +20,9 @@ public sealed class AzurePostgresAutoSleepOptions
 
     public List<string> ExemptPaths { get; set; } = new() { "/healthz" };
 
+    public bool WakeOnStartup { get; set; } = false;
+
+    public TimeSpan StartupWakeTimeout { get; set; } = TimeSpan.FromMinutes(2);
+
     public TokenCredential? Credential { get; set; }
 }
