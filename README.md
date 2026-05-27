@@ -65,7 +65,8 @@ A fuller example lives under [`samples/SampleWebApi/`](samples/SampleWebApi).
 | `WakePollInterval` | `00:00:05` | Polling interval while waiting for the DB to reach `Ready`. |
 | `StopCheckInterval` | `00:01:00` | How often `AutoStopHostedService` evaluates the idle condition. |
 | `StateCacheLifetime` | `00:00:30` | TTL of the cached DB state, used to limit ARM API call rate. |
-| `ExemptPaths` | `["/healthz"]` | Path prefixes that should NOT trigger a wake. Add webhook endpoints, static assets, etc. |
+| `ExemptPaths` | `["/healthz"]` | Path prefixes that should NOT trigger a wake (segment-prefix match, case-insensitive). Add webhook endpoints, static assets, etc. See "Common pitfalls" below. |
+| `ExemptPredicate` | `null` | Optional `Func<HttpContext,bool>` that composes with `ExemptPaths` via OR. Use for "exempt anything not under `/api`" patterns common to SPA hosts. |
 | `WakeOnStartup` | `false` | Wake the DB during host startup, before any other `IHostedService` runs. Prevents crash-loops when EF migrations / seed loaders run while the DB is `Stopped`. |
 | `StartupWakeTimeout` | `00:02:00` | Max time the startup wake waits before failing fast. |
 | `Credential` | `DefaultAzureCredential()` | Override the ARM client credential (e.g. to inject a test fake). |
@@ -112,6 +113,52 @@ resource "azurerm_role_assignment" "app_to_postgres_sleep" {
 ```
 
 See [`docs/threat-model.md`](docs/threat-model.md) for the full security model and blast-radius analysis.
+
+## Health checks
+
+Register the bundled health check to expose Postgres state on `/healthz/ready` (or similar). It treats `Stopped` as **Healthy** — the DB is asleep on purpose; the next request will wake it. This avoids the readiness-probe flap you'd get from wiring `AddNpgSql` against the same DB.
+
+```csharp
+using AzurePostgresFlexibleAutoSleep.DependencyInjection;
+
+builder.Services.AddHealthChecks()
+    .AddAzurePostgresAutoSleepHealthCheck();   // name: "postgres-autosleep"
+
+app.MapHealthChecks("/healthz/ready");
+```
+
+| Server state | Health status |
+|---|---|
+| `Ready` | `Healthy` |
+| `Stopped` | `Healthy` (no traffic; will wake on demand) |
+| `Starting` / `Stopping` | `Degraded` |
+| `Dropping` / `Failed` / `Unknown` | `Unhealthy` |
+
+This is **not** a replacement for an actual "can I run a query" check — use that on a path that's exempt from wake. Pair it with a `/healthz/live` that doesn't touch the DB.
+
+## Common pitfalls
+
+### `ExemptPaths` and endpoint routing
+
+`ExemptPaths` matches via `PathString.StartsWithSegments` — segment-prefix, case-insensitive. `"/assets"` covers `"/assets/index-foo.js"` but not `"/assets-v2"`. To exempt **only** the literal site root, include `"/"` — that matches exact root only and does not exempt every request.
+
+**Pitfall:** if your host calls `MapControllers` / `MapFallbackToFile` without an explicit `app.UseRouting()`, ASP.NET Core auto-inserts `UseRouting` at the *start* of the pipeline. `UseRouting` matches non-API URLs to your fallback endpoint *before* `UseDefaultFiles` / `UseStaticFiles` get a chance to rewrite them. So `GET /` flows through the wake middleware with `Path == "/"` (not `"/index.html"`), and your exempt list needs to include the literal `"/"`.
+
+For SPA hosts where the client router owns paths like `/admin`, `/login`, `/settings/...` and only `/api/...` actually touches the DB, the cleanest expression is the inverse predicate (see #6):
+
+```csharp
+opts.ExemptPredicate = ctx => !ctx.Request.Path.StartsWithSegments("/api");
+```
+
+`ExemptPaths` and `ExemptPredicate` compose as OR.
+
+### Always On
+
+App Service `Always On` is on by default for B1+ tiers and pings the application root every ~5 min. Unless you exempt the warmup path, every probe wakes the DB and erases the saving auto-sleep is meant to deliver. Either disable Always On for the auto-sleep slot, or exempt the warmup endpoint explicitly.
+
+### Diagnosing unexpected wakes
+
+The wake middleware logs `Wake triggered by {Method} {Path}` at Information before each non-exempt request reaches the lifecycle client. If you see the DB starting and don't know why, grep production logs for `Wake triggered` — that's the smoking gun.
 
 ## Operational notes
 
