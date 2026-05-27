@@ -66,7 +66,21 @@ A fuller example lives under [`samples/SampleWebApi/`](samples/SampleWebApi).
 | `StopCheckInterval` | `00:01:00` | How often `AutoStopHostedService` evaluates the idle condition. |
 | `StateCacheLifetime` | `00:00:30` | TTL of the cached DB state, used to limit ARM API call rate. |
 | `ExemptPaths` | `["/healthz"]` | Path prefixes that should NOT trigger a wake. Add webhook endpoints, static assets, etc. |
+| `WakeOnStartup` | `false` | Wake the DB during host startup, before any other `IHostedService` runs. Prevents crash-loops when EF migrations / seed loaders run while the DB is `Stopped`. |
+| `StartupWakeTimeout` | `00:02:00` | Max time the startup wake waits before failing fast. |
 | `Credential` | `DefaultAzureCredential()` | Override the ARM client credential (e.g. to inject a test fake). |
+
+### Wake at startup (EF migrations, seed loaders)
+
+If your app touches the DB in `Program.cs` before `app.Run()` — e.g. `await db.Database.MigrateAsync()` — the request-pipeline middleware can't help: the call happens before any HTTP request. Opt in to a startup-time wake so the container doesn't crash-loop when restarted while the DB is stopped:
+
+```csharp
+builder.Services
+    .AddAzurePostgresAutoSleep(opts => { opts.ResourceId = "..."; })
+    .WakeOnApplicationStartup();   // or: opts.WakeOnStartup = true;
+```
+
+The wake runs in `StartAsync` of an `IHostedService` registered before `AutoStopHostedService`. If it exceeds `StartupWakeTimeout` or the ARM call fails, the host startup fails fast — the platform restart-backoff is a better recovery path than a hung process.
 
 ## Required Azure role
 
