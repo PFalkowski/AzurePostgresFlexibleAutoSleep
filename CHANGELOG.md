@@ -4,6 +4,17 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-05-27
+
+### Added
+- `StartupWakeHostedService` + `WakeOnStartup` / `StartupWakeTimeout` options + `WakeOnApplicationStartup()` fluent helper. Wakes the DB during host startup, before any other `IHostedService`, so EF migrations / seed loaders that run before `app.Run()` don't crash-loop when the platform restarts the container while Postgres is `Stopped` (#2).
+- `ExemptPredicate` (`Func<HttpContext, bool>?`) on `AzurePostgresAutoSleepOptions`, composing with `ExemptPaths` via OR. Cleanly expresses "exempt anything not under `/api`" for SPA hosts (#6).
+- `PostgresAutoSleepHealthCheck` (`IHealthCheck`) treating `Stopped` as `Healthy`, `Starting` / `Stopping` as `Degraded`, `Dropping` / `Failed` / `Unknown` as `Unhealthy`. Register via `AddHealthChecks().AddAzurePostgresAutoSleepHealthCheck()` (#5).
+
+### Changed
+- `AutoWakeMiddleware` logs `Wake triggered by {Method} {Path}` at Information before each non-exempt request, so unexpected wakes are diagnosable from logs alone (#3).
+- README: new "Common pitfalls" section covering the `MapFallbackToFile` routing trap, Always On warning, wake-trigger log, and `ExemptPredicate` usage; new "Health checks" section; `ExemptPaths` semantics spelled out in the options table and XML doc (#4).
+
 ## [0.1.1] - 2026-05-26
 
 ### Fixed
@@ -27,6 +38,7 @@ All notable changes to this project are documented here. Format follows [Keep a 
 - Sample web API under `samples/SampleWebApi/` showing EF interceptor + `IDbWaker` wiring.
 - Threat model under `docs/threat-model.md` documenting blast radius and the custom Azure role.
 
-[Unreleased]: https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/releases/tag/v0.1.0

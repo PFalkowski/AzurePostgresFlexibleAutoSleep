@@ -2,6 +2,7 @@ using AzurePostgresFlexibleAutoSleep.Activity;
 using AzurePostgresFlexibleAutoSleep.Lifecycle;
 using AzurePostgresFlexibleAutoSleep.Tests.Fakes;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Xunit;
@@ -173,6 +174,103 @@ public class AutoWakeMiddlewareTests
 
         Assert.Equal(1, originalLifecycle.EnsureAwakeCalls);
         Assert.Equal(5, nextCount[0]);
+    }
+
+    [Fact]
+    public async Task Wake_logs_method_and_path_at_information()
+    {
+        var opts = DefaultOptions();
+        var logger = new ListLogger<AutoWakeMiddleware>();
+        var lifecycle = new FakePostgresLifecycleClient { State = PostgresServerState.Stopped };
+        var mw = new AutoWakeMiddleware(
+            _ => Task.CompletedTask,
+            Options.Create(opts),
+            lifecycle,
+            new DbActivityTracker(),
+            logger);
+
+        var ctx = NewContext("/api/things");
+        ctx.Request.Method = "POST";
+        await mw.InvokeAsync(ctx);
+
+        Assert.Contains(logger.Entries, e =>
+            e.Level == LogLevel.Information &&
+            e.Message.Contains("POST") &&
+            e.Message.Contains("/api/things"));
+    }
+
+    [Fact]
+    public async Task Exempt_path_does_not_log_wake_trigger()
+    {
+        var opts = DefaultOptions();
+        opts.ExemptPaths = new() { "/healthz" };
+        var logger = new ListLogger<AutoWakeMiddleware>();
+        var mw = new AutoWakeMiddleware(
+            _ => Task.CompletedTask,
+            Options.Create(opts),
+            new FakePostgresLifecycleClient(),
+            new DbActivityTracker(),
+            logger);
+
+        await mw.InvokeAsync(NewContext("/healthz"));
+
+        Assert.DoesNotContain(logger.Entries, e =>
+            e.Level == LogLevel.Information && e.Message.Contains("Wake"));
+    }
+
+    [Fact]
+    public async Task ExemptPredicate_returning_true_skips_wake()
+    {
+        var opts = DefaultOptions();
+        opts.ExemptPredicate = ctx => !ctx.Request.Path.StartsWithSegments("/api");
+        var lifecycle = new FakePostgresLifecycleClient { State = PostgresServerState.Stopped };
+        var (mw, _, _, nextCount) = Build(opts, lifecycle);
+
+        await mw.InvokeAsync(NewContext("/admin"));
+
+        Assert.Equal(1, nextCount[0]);
+        Assert.Equal(0, lifecycle.EnsureAwakeCalls);
+    }
+
+    [Fact]
+    public async Task ExemptPredicate_returning_false_still_wakes()
+    {
+        var opts = DefaultOptions();
+        opts.ExemptPredicate = ctx => !ctx.Request.Path.StartsWithSegments("/api");
+        var lifecycle = new FakePostgresLifecycleClient { State = PostgresServerState.Stopped };
+        var (mw, _, _, nextCount) = Build(opts, lifecycle);
+
+        await mw.InvokeAsync(NewContext("/api/things"));
+
+        Assert.Equal(1, nextCount[0]);
+        Assert.Equal(1, lifecycle.EnsureAwakeCalls);
+    }
+
+    [Fact]
+    public async Task ExemptPaths_and_ExemptPredicate_compose_as_OR()
+    {
+        var opts = DefaultOptions();
+        opts.ExemptPaths = new() { "/healthz" };
+        opts.ExemptPredicate = ctx => ctx.Request.Headers.ContainsKey("X-Skip-Wake");
+        var lifecycle = new FakePostgresLifecycleClient { State = PostgresServerState.Stopped };
+        var (mw, _, _, _) = Build(opts, lifecycle);
+
+        await mw.InvokeAsync(NewContext("/healthz"));
+        var ctx = NewContext("/api/things");
+        ctx.Request.Headers["X-Skip-Wake"] = "1";
+        await mw.InvokeAsync(ctx);
+
+        Assert.Equal(0, lifecycle.EnsureAwakeCalls);
+    }
+
+    private sealed class ListLogger<T> : ILogger<T>
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = new();
+
+        IDisposable? ILogger.BeginScope<TState>(TState state) => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
+            => Entries.Add((logLevel, formatter(state, exception)));
     }
 
     private sealed class SerializingLifecycle : IPostgresLifecycleClient
