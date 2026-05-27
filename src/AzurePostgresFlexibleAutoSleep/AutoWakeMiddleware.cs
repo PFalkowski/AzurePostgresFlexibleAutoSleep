@@ -31,11 +31,16 @@ public sealed class AutoWakeMiddleware
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!_options.Enabled || IsExempt(context.Request.Path))
+        if (!_options.Enabled || IsExempt(context))
         {
             await _next(context).ConfigureAwait(false);
             return;
         }
+
+        _logger.LogInformation(
+            "Wake triggered by {Method} {Path}",
+            context.Request.Method,
+            context.Request.Path);
 
         try
         {
@@ -74,15 +79,16 @@ public sealed class AutoWakeMiddleware
         await context.Response.WriteAsync($"{{\"error\":\"{message}\"}}").ConfigureAwait(false);
     }
 
-    private bool IsExempt(PathString path)
+    private bool IsExempt(HttpContext context)
     {
         foreach (var prefix in _options.ExemptPaths)
         {
-            if (path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase))
+            if (context.Request.Path.StartsWithSegments(prefix, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
         }
-        return false;
+
+        return _options.ExemptPredicate?.Invoke(context) ?? false;
     }
 }
