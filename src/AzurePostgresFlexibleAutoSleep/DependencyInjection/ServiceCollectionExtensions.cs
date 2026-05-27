@@ -2,6 +2,7 @@ using AzurePostgresFlexibleAutoSleep.Activity;
 using AzurePostgresFlexibleAutoSleep.Lifecycle;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 
 namespace AzurePostgresFlexibleAutoSleep.DependencyInjection;
@@ -55,5 +56,18 @@ public static class ServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         services.Configure<AzurePostgresAutoSleepOptions>(o => o.WakeOnStartup = true);
         return services;
+    }
+
+    public static IHealthChecksBuilder AddAzurePostgresAutoSleepHealthCheck(
+        this IHealthChecksBuilder builder,
+        string name = "postgres-autosleep",
+        HealthStatus? failureStatus = null,
+        IEnumerable<string>? tags = null)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.AddCheck<PostgresAutoSleepHealthCheck>(
+            name,
+            failureStatus,
+            tags ?? Array.Empty<string>());
     }
 }
