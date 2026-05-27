@@ -1,0 +1,79 @@
+name: cd
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: cd
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Read version from csproj
+        id: ver
+        run: |
+          version=$(grep -oP '(?<=<Version>)[^<]+' src/AzurePostgresFlexibleAutoSleep/AzurePostgresFlexibleAutoSleep.csproj | head -1)
+          if [ -z "$version" ]; then
+            echo "::error::No <Version> found in csproj"
+            exit 1
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          echo "Version: $version"
+
+      - name: Check if tag already exists
+        id: tag
+        run: |
+          tag="v${{ steps.ver.outputs.value }}"
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists; nothing to publish."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build & test
+        if: steps.tag.outputs.exists == 'false'
+        run: |
+          dotnet restore
+          dotnet build -c Release --no-restore
+          dotnet test -c Release --no-build --verbosity normal
+
+      - name: Pack
+        if: steps.tag.outputs.exists == 'false'
+        run: dotnet pack src/AzurePostgresFlexibleAutoSleep/AzurePostgresFlexibleAutoSleep.csproj -c Release --no-build -o ./nupkgs
+
+      - name: Push tag
+        if: steps.tag.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="v${{ steps.ver.outputs.value }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "$tag"
+
+      - name: Publish to NuGet
+        if: steps.tag.outputs.exists == 'false'
+        run: dotnet nuget push "./nupkgs/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Create GitHub release
+        if: steps.tag.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="v${{ steps.ver.outputs.value }}"
+          gh release create "$tag" ./nupkgs/*.nupkg --title "$tag" --generate-notes
