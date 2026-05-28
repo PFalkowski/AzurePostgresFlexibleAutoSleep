@@ -50,6 +50,7 @@ public static class ServiceCollectionExtensions
         services.TryAddSingleton<ActivityCommandInterceptor>();
         services.AddHostedService<StartupWakeHostedService>();
         services.AddHostedService<AutoStopHostedService>();
+        services.AddHostedService<ShutdownStopHostedService>();
 
         return services;
     }

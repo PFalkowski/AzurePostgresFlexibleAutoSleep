@@ -86,6 +86,7 @@ public class DependencyInjectionTests
             o.ResourceId = "/subscriptions/x/resourceGroups/y/providers/Microsoft.DBforPostgreSQL/flexibleServers/z";
         });
         services.Replace(ServiceDescriptor.Singleton<IPostgresLifecycleClient, FakePostgresLifecycleClient>());
+        services.AddSingleton<IHostApplicationLifetime>(new FakeHostApplicationLifetime());
 
         using var sp = services.BuildServiceProvider();
         var hosted = sp.GetServices<IHostedService>().ToList();
@@ -95,6 +96,42 @@ public class DependencyInjectionTests
         Assert.True(startupIdx >= 0, "StartupWakeHostedService not registered");
         Assert.True(stopIdx >= 0, "AutoStopHostedService not registered");
         Assert.True(startupIdx < stopIdx, "StartupWakeHostedService must precede AutoStopHostedService");
+    }
+
+    [Fact]
+    public void ShutdownStop_hosted_service_is_registered()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAzurePostgresAutoSleep(o =>
+        {
+            o.ResourceId = "/subscriptions/x/resourceGroups/y/providers/Microsoft.DBforPostgreSQL/flexibleServers/z";
+        });
+        services.Replace(ServiceDescriptor.Singleton<IPostgresLifecycleClient, FakePostgresLifecycleClient>());
+        services.AddSingleton<IHostApplicationLifetime>(new FakeHostApplicationLifetime());
+
+        using var sp = services.BuildServiceProvider();
+        var hosted = sp.GetServices<IHostedService>().ToList();
+
+        Assert.Contains(hosted, h => h is ShutdownStopHostedService);
+    }
+
+    [Fact]
+    public void ShutdownStop_resolves_without_revision_provider_registered()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddAzurePostgresAutoSleep(o =>
+        {
+            o.ResourceId = "/subscriptions/x/resourceGroups/y/providers/Microsoft.DBforPostgreSQL/flexibleServers/z";
+        });
+        services.Replace(ServiceDescriptor.Singleton<IPostgresLifecycleClient, FakePostgresLifecycleClient>());
+        services.AddSingleton<IHostApplicationLifetime>(new FakeHostApplicationLifetime());
+
+        using var sp = services.BuildServiceProvider();
+        var hosted = sp.GetServices<IHostedService>().OfType<ShutdownStopHostedService>().Single();
+
+        Assert.NotNull(hosted);
     }
 
     [Fact]
