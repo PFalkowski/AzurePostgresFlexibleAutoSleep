@@ -4,6 +4,9 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### CI/CD
+- Continuous delivery: `cd.yml` publishes to NuGet on every push to `master` when the `<Version>` in `src/AzurePostgresFlexibleAutoSleep/AzurePostgresFlexibleAutoSleep.csproj` corresponds to a tag that doesn't yet exist. Tags are created and pushed by the workflow; a GitHub release is generated with auto-notes. No tag = no publish. The previous tag-driven `release.yml` is removed.
+
 ## [0.2.0] - 2026-05-27
 
 ### Added
