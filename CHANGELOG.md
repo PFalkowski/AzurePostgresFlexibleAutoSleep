@@ -4,6 +4,11 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- `StopOnShutdown` / `ShutdownStopTimeout` options and `ShutdownStopHostedService`. On graceful host shutdown (`IHostApplicationLifetime.ApplicationStopping`), stops the DB if it is idle past `IdleThreshold`, so the DB can sleep on hosts that scale to zero where the polling auto-stop loop dies with the last replica. Default off (#11).
+- `IRevisionAwarenessProvider` seam (no built-in implementation) consulted before the shutdown stop, so platform-specific deploy detection (ACA/App Runner/Cloud Run) can be added without an API break (#11).
+- README "Hosts that scale to zero" section: the feature, the residual SIGKILL/crash gap, the `WakeOnStartup` overlap crash-loop, grace-window guidance, the redeploy/wake races, and the Azure Monitor dead-man's-switch operator alternative. Decision recorded in `docs/adr/0001-stop-on-shutdown.md` (#11).
+
 ### CI/CD
 - Continuous delivery: `cd.yml` publishes to NuGet on every push to `master` when the `<Version>` in `src/AzurePostgresFlexibleAutoSleep/AzurePostgresFlexibleAutoSleep.csproj` corresponds to a tag that doesn't yet exist. Tags are created and pushed by the workflow; a GitHub release is generated with auto-notes. No tag = no publish. The previous tag-driven `release.yml` is removed.
 

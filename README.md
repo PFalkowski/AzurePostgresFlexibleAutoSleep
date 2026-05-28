@@ -69,6 +69,8 @@ A fuller example lives under [`samples/SampleWebApi/`](samples/SampleWebApi).
 | `ExemptPredicate` | `null` | Optional `Func<HttpContext,bool>` that composes with `ExemptPaths` via OR. Use for "exempt anything not under `/api`" patterns common to SPA hosts. |
 | `WakeOnStartup` | `false` | Wake the DB during host startup, before any other `IHostedService` runs. Prevents crash-loops when EF migrations / seed loaders run while the DB is `Stopped`. |
 | `StartupWakeTimeout` | `00:02:00` | Max time the startup wake waits before failing fast. |
+| `StopOnShutdown` | `false` | Stop the DB on graceful host shutdown if it has been idle past `IdleThreshold`. For hosts that scale to zero, where the polling auto-stop loop dies with the last replica. See "Hosts that scale to zero". |
+| `ShutdownStopTimeout` | `00:00:25` | Max time the shutdown handler waits for the stop to be accepted. Keep below the host's termination grace period (ACA default 30s). |
 | `Credential` | `DefaultAzureCredential()` | Override the ARM client credential (e.g. to inject a test fake). |
 
 ### Wake at startup (EF migrations, seed loaders)
@@ -82,6 +84,40 @@ builder.Services
 ```
 
 The wake runs in `StartAsync` of an `IHostedService` registered before `AutoStopHostedService`. If it exceeds `StartupWakeTimeout` or the ARM call fails, the host startup fails fast — the platform restart-backoff is a better recovery path than a hung process.
+
+## Hosts that scale to zero
+
+`AutoStopHostedService` is a polling loop: it only stops the DB while the host is alive. On hosts that **scale to zero** (Azure Container Apps consumption plan, AWS App Runner `min=0`, Cloud Run at idle), the last replica is torn down when traffic stops, the loop dies with it, and an idle DB never gets stopped — so the compute saving evaporates on exactly the cheapest topology.
+
+`StopOnShutdown` plugs the common path. On graceful shutdown it stops the DB if it has been idle past `IdleThreshold`:
+
+```csharp
+builder.Services.AddAzurePostgresAutoSleep(opts =>
+{
+    opts.ResourceId          = "...";
+    opts.IdleThreshold       = TimeSpan.FromMinutes(15);
+    opts.StopOnShutdown      = true;                     // default false
+    opts.ShutdownStopTimeout = TimeSpan.FromSeconds(25); // < termination grace period
+});
+```
+
+The handler registers against `IHostApplicationLifetime.ApplicationStopping` (not `BackgroundService.StopAsync`, which runs too early — before dependent services are usable). The stop is issued with `WaitUntil.Started`, so it returns once Azure *accepts* the request (~1–2s); the realistic shutdown cost is a few seconds, well inside ACA's 30s default grace.
+
+### Caveats — read before enabling
+
+- **It patches the common path, not the gap.** A `SIGKILL` without grace, an OOM, or a host crash bypasses `ApplicationStopping` entirely → the DB stays up until the next graceful shutdown or the next replica's idle loop catches it. `StopOnShutdown` is a cost optimisation, not a guarantee.
+- **Don't combine with `WakeOnStartup` on scale-to-zero.** With both on, every cold start wakes the DB and the next scale-in stops it again — thrash. On scale-to-zero, enable `StopOnShutdown` alone and let the wake middleware bring the DB up lazily on the first real request.
+- **Set the grace period.** `ShutdownStopTimeout` must be below the host's termination grace (ACA `terminationGracePeriodSeconds`, default 30s). On tight grace windows, extend the platform setting.
+- **Redeploy looks like scale-in.** From inside the container, a rolling redeploy and a scale-in both deliver `SIGTERM`. The idle gate catches the common case (active workload + SIGTERM ≈ deploy). If an *idle* redeploy stops the DB, the next replica restarts it — a bounded, self-healing ~60–90s delay. To eliminate it, register an `IRevisionAwarenessProvider` (see below).
+- **Wake/stop race across replicas.** If a request lands on a new replica just before the old replica's shutdown stop, the two ARM calls race. Azure serializes them; worst case is `started → stopped → started` over ~90s — bounded and self-healing.
+
+### Tightening deploy detection — `IRevisionAwarenessProvider`
+
+`StopOnShutdown` consults an optional `IRevisionAwarenessProvider` (if one is registered) before stopping; when it reports a deploy in progress, the handler is a no-op. No implementation ships in this package — the seam exists so platform-specific detection (e.g. an ACA revision-list check, App Runner `AWS_APPRUNNER_DEPLOYMENT_ID`, Cloud Run `K_REVISION`) can be added without an API break. A built-in provider would need ARM permissions on the *host* resource, beyond the single-DB role this library is scoped to, so it is intentionally left to the consumer.
+
+### Operator alternative — platform dead-man's switch
+
+If you want correct scale-to-zero without relying on the in-process handler, run the stop decision on always-on infrastructure instead: an **Azure Monitor metric alert** on the server's `active_connections` (e.g. `== 0 for 15 min`) wired through an action group to a Logic App / Automation runbook / Function that calls `flexibleServers/stop`. This is external infrastructure (deliberately out of scope for this library), but it survives crashes and scale-in that bypass the graceful-shutdown hook. It composes with `StopOnShutdown` rather than replacing it.
 
 ## Required Azure role
 
