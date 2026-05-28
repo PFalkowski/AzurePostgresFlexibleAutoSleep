@@ -65,6 +65,24 @@ Keep in-process purity. Document that scale-to-zero consumers should either pin 
 
 **Rejected.** Delivers no feature and concedes the cheapest topology. The whole point of the issue is to make ACA scale-to-zero viable.
 
+### Option D — Inverted control: client keep-alive / dead-man's-switch
+
+Flip the data flow. Instead of the host observing activity (`DbCommandInterceptor` updating `LastActivity`) and a co-located timer deciding when to stop, every client of the DB — web replicas, background jobs, dev machines, other services — periodically renews a **lease** ("keep-alive"). When no lease renewal arrives for `X` minutes, the DB is stopped. This is a dead-man's switch: *absence* of signal is the trigger, not presence of idleness.
+
+**What it genuinely improves:**
+- **Multi-client / multi-instance is native.** A single shared lease with one expiry authority removes the multi-instance stop race (today's deferred advisory-lock mitigation, honest-risk #3). Whoever renews last holds the DB up; nobody races to stop.
+- **Decouples the stopper from the workload.** The thing deciding to stop need not be co-located with the thing using the DB. That is exactly the property scale-to-zero needs.
+
+**Why it does not change this decision:**
+- **It does not escape the core constraint.** Pushing "still alive" instead of observing idleness is a data-flow inversion, not a control inversion: *something* must still run the expiry countdown and call `stop` precisely when the signals have stopped — i.e. when scale-to-zero has already torn the host down. A dead-man's switch is only as good as the always-on host watching the lease.
+  - If that watcher is **in-process**, the failure mode is identical to today — it dies with the last replica. No improvement over what this ADR already addresses.
+  - If the watcher is **the Azure platform** (e.g. an Azure Monitor metric alert on `active_connections == 0 for 15 min` → action group → Logic App/Automation/Function calling `flexibleServers/stop`), it works correctly and is nearly free — but it is **external infrastructure**, the category ADR-0056 froze out (Function/cron/edge-wake all rejected there). It is a legitimate *operator* topology, not something this in-process library can ship.
+  - Postgres cannot stop its own Azure compute (no in-DB path to ARM), so there is no purely DB-side form of this.
+- **New failure mode: fail-safe-to-stop.** Absence of signal = stop. A network partition between clients and the lease store, or a client-side bug that drops renewals, stops a DB that is actually in use → availability harm, not just a cost leak. The current observe-and-stop model fails the other way (stops *less* than ideal), which is the safer default for a cost-optimisation library.
+- **More invasive for consumers.** Clients must actively emit keep-alives; today activity is observed transparently via the interceptor (with `IDbWaker` already covering non-HTTP consumers). The inversion pushes wiring onto every client.
+
+**Verdict:** the keep-alive/dead-man's-switch is the *correct* architecture for the scale-to-zero / multi-client case — but only when hosted on an always-on watcher, which lands it in the external-infrastructure category this project deliberately excludes. It is therefore documented here as the recommended **operator-side** pattern (an Azure Monitor autostop rule) for consumers unwilling to rely on the in-process `StopOnShutdown` patch, not as a library feature. `StopOnShutdown` (Option A) remains the right *in-process* answer; the two are complementary, not competing.
+
 ## Decision (Proposed)
 
 **Option A.** Add an opt-in `StopOnShutdown` that registers an `ApplicationStopping` handler gated by `IdleThreshold`. Keep `IRevisionAwarenessProvider` as an optional, unimplemented extension point so platform-specific deploy detection (Layer 2) is addable later without an API break. No new Azure permissions, no ACA coupling.
@@ -122,5 +140,6 @@ builder.Services.AddAzurePostgresAutoSleep(opts =>
 ## Deferred
 
 - Built-in `IRevisionAwarenessProvider` for ACA (`CONTAINER_APP_REVISION` + revision-list), App Runner (`AWS_APPRUNNER_DEPLOYMENT_ID`), Cloud Run (`K_REVISION`) — likely a separate package to keep the core free of platform ARM permissions.
-- Advisory-lock / KV mutex to serialize wake-vs-stop across replicas.
+- Advisory-lock / KV mutex to serialize wake-vs-stop across replicas (largely obviated for operators who adopt the Option D dead-man's-switch instead).
+- README "operator alternatives" note documenting the Option D Azure Monitor autostop rule (`active_connections == 0` → action group → stop) as the external-infra path for consumers who want correct scale-to-zero without the in-process `StopOnShutdown` patch.
 - Integration test against a real B1ms confirming the stop accepts within the grace window.
