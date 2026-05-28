@@ -16,6 +16,8 @@ public class AzurePostgresAutoSleepOptionsTests
         Assert.Equal(TimeSpan.FromMinutes(1), opts.StopCheckInterval);
         Assert.Equal(TimeSpan.FromSeconds(30), opts.StateCacheLifetime);
         Assert.Equal(new[] { "/healthz" }, opts.ExemptPaths);
+        Assert.False(opts.StopOnShutdown);
+        Assert.Equal(TimeSpan.FromSeconds(25), opts.ShutdownStopTimeout);
         Assert.Null(opts.Credential);
     }
 }

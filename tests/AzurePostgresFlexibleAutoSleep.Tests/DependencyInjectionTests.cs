@@ -38,6 +38,7 @@ public class DependencyInjectionTests
     [InlineData(nameof(AzurePostgresAutoSleepOptions.StopCheckInterval))]
     [InlineData(nameof(AzurePostgresAutoSleepOptions.StateCacheLifetime))]
     [InlineData(nameof(AzurePostgresAutoSleepOptions.StartupWakeTimeout))]
+    [InlineData(nameof(AzurePostgresAutoSleepOptions.ShutdownStopTimeout))]
     public void Options_validation_rejects_non_positive_intervals(string property)
     {
         var services = new ServiceCollection();
@@ -51,6 +52,7 @@ public class DependencyInjectionTests
                 case nameof(AzurePostgresAutoSleepOptions.StopCheckInterval): o.StopCheckInterval = TimeSpan.Zero; break;
                 case nameof(AzurePostgresAutoSleepOptions.StateCacheLifetime): o.StateCacheLifetime = TimeSpan.Zero; break;
                 case nameof(AzurePostgresAutoSleepOptions.StartupWakeTimeout): o.StartupWakeTimeout = TimeSpan.Zero; break;
+                case nameof(AzurePostgresAutoSleepOptions.ShutdownStopTimeout): o.ShutdownStopTimeout = TimeSpan.Zero; break;
             }
         });
 

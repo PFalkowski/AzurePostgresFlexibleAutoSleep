@@ -39,5 +39,18 @@ public sealed class AzurePostgresAutoSleepOptions
 
     public TimeSpan StartupWakeTimeout { get; set; } = TimeSpan.FromMinutes(2);
 
+    /// <summary>
+    /// When true, a graceful host shutdown (<see cref="Microsoft.Extensions.Hosting.IHostApplicationLifetime.ApplicationStopping"/>)
+    /// stops the server if it has been idle longer than <see cref="IdleThreshold"/>. Lets the DB sleep on hosts
+    /// that scale to zero, where the polling auto-stop loop dies with the last replica. Default false.
+    /// </summary>
+    public bool StopOnShutdown { get; set; } = false;
+
+    /// <summary>
+    /// Upper bound on how long the <see cref="StopOnShutdown"/> handler waits for the stop to be accepted
+    /// before letting the process exit. Keep below the host's termination grace period (ACA default 30s).
+    /// </summary>
+    public TimeSpan ShutdownStopTimeout { get; set; } = TimeSpan.FromSeconds(25);
+
     public TokenCredential? Credential { get; set; }
 }
