@@ -8,7 +8,7 @@
     <PackageTags>azure;postgres;postgresql;flexible-server;aspnetcore;cost-optimization</PackageTags>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="AzurePostgresFlexibleAutoSleep.Tests" />
