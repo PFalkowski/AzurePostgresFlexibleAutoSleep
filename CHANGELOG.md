@@ -4,6 +4,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-29
+
 ### Added
 - `StopOnShutdown` / `ShutdownStopTimeout` options and `ShutdownStopHostedService`. On graceful host shutdown (`IHostApplicationLifetime.ApplicationStopping`), stops the DB if it is idle past `IdleThreshold`, so the DB can sleep on hosts that scale to zero where the polling auto-stop loop dies with the last replica. Default off (#11).
 - `IRevisionAwarenessProvider` seam (no built-in implementation) consulted before the shutdown stop, so platform-specific deploy detection (ACA/App Runner/Cloud Run) can be added without an API break (#11).
@@ -46,7 +48,8 @@ All notable changes to this project are documented here. Format follows [Keep a 
 - Sample web API under `samples/SampleWebApi/` showing EF interceptor + `IDbWaker` wiring.
 - Threat model under `docs/threat-model.md` documenting blast radius and the custom Azure role.
 
-[Unreleased]: https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/releases/tag/v0.1.0
