@@ -1,7 +1,7 @@
 # 0001 — StopOnShutdown: sleep the DB on graceful host shutdown for scale-to-zero hosts
 
-- Status: **Proposed** (pending operator decision; no code written yet)
-- Date: 2026-05-28
+- Status: **Accepted** (Option A; implemented in #11)
+- Date: 2026-05-28 (accepted 2026-05-29)
 - Driving issue: [#11 StopOnShutdown](https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/issues/11)
 - Related: consumer `GeopoliticsSim/docs/adr/0056-postgres-auto-sleep.md` (froze the in-process model and the single-resource least-privilege role this ADR must not break), `GeopoliticsSim/docs/adr/0054-aca-migration-evaluation.md` (the ACA topology that surfaced this gap)
 - This is the first ADR in this repo; it also establishes the `docs/adr/` convention here.
@@ -83,7 +83,7 @@ Flip the data flow. Instead of the host observing activity (`DbCommandIntercepto
 
 **Verdict:** the keep-alive/dead-man's-switch is the *correct* architecture for the scale-to-zero / multi-client case — but only when hosted on an always-on watcher, which lands it in the external-infrastructure category this project deliberately excludes. It is therefore documented here as the recommended **operator-side** pattern (an Azure Monitor autostop rule) for consumers unwilling to rely on the in-process `StopOnShutdown` patch, not as a library feature. `StopOnShutdown` (Option A) remains the right *in-process* answer; the two are complementary, not competing.
 
-## Decision (Proposed)
+## Decision (Accepted)
 
 **Option A.** Add an opt-in `StopOnShutdown` that registers an `ApplicationStopping` handler gated by `IdleThreshold`. Keep `IRevisionAwarenessProvider` as an optional, unimplemented extension point so platform-specific deploy detection (Layer 2) is addable later without an API break. No new Azure permissions, no ACA coupling.
 
