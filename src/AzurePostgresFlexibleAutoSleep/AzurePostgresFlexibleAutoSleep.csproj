@@ -6,10 +6,15 @@
     <PackageId>AzurePostgresFlexibleAutoSleep</PackageId>
     <Description>ASP.NET Core middleware that stops an Azure Postgres Flexible Server after a configurable idle period and starts it on-demand when a request arrives.</Description>
     <PackageTags>azure;postgres;postgresql;flexible-server;aspnetcore;cost-optimization</PackageTags>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IsPackable>true</IsPackable>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="AzurePostgresFlexibleAutoSleep.Tests" />
   </ItemGroup>
@@ -22,5 +27,6 @@
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Polly" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" PrivateAssets="All" />
   </ItemGroup>
 </Project>

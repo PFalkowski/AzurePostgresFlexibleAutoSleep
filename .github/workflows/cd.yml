@@ -1,26 +1,29 @@
-name: cd
+name: CD
+
 on:
   push:
-    branches: [master]
+    branches: [ "master" ]
   workflow_dispatch:
 
 concurrency:
   group: cd
   cancel-in-progress: false
 
+permissions:
+  contents: write
+  id-token: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: 8.0.x
 
       - name: Read version from csproj
         id: ver
@@ -66,9 +69,16 @@ jobs:
           git tag -a "$tag" -m "Release $tag"
           git push origin "$tag"
 
-      - name: Publish to NuGet
+      - name: Login to NuGet
         if: steps.tag.outputs.exists == 'false'
-        run: dotnet nuget push "./nupkgs/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        uses: NuGet/login@v1
+        with:
+          usernameVar: NUGET_USER
+          tokenVar: NUGET_TOKEN
+
+      - name: Push to NuGet
+        if: steps.tag.outputs.exists == 'false'
+        run: dotnet nuget push "./nupkgs/*.nupkg" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Create GitHub release
         if: steps.tag.outputs.exists == 'false'

@@ -1,7 +1,10 @@
 # AzurePostgresFlexibleAutoSleep
 
-[![ci](https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/actions/workflows/ci.yml/badge.svg)](https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/actions/workflows/ci.yml)
+[![CI](https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/actions/workflows/ci.yml/badge.svg)](https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/v/AzurePostgresFlexibleAutoSleep.svg)](https://www.nuget.org/packages/AzurePostgresFlexibleAutoSleep/)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=PFalkowski_AzurePostgresFlexibleAutoSleep&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=PFalkowski_AzurePostgresFlexibleAutoSleep)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://choosealicense.com/licenses/mit/)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-yellow.svg)](https://www.buymeacoffee.com/piotrfalkowski)
 
 ASP.NET Core middleware that **stops** an Azure Postgres Flexible Server after a configurable idle period and **starts** it on-demand when a request that needs the database arrives. Cuts the ~$10/mo compute slice of a B1ms server by 80%+ for low-traffic apps, at the cost of a 60–90 s cold start on the first request after idle.
 
