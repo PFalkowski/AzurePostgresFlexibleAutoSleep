@@ -11,7 +11,7 @@
   <PropertyGroup Label="Package metadata">
     <Authors>Piotr Falkowski</Authors>
     <Company>Piotr Falkowski</Company>
-    <Copyright>Copyright (c) Piotr Falkowski</Copyright>
+    <Copyright>Copyright © Piotr Falkowski 2026</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep</PackageProjectUrl>
     <RepositoryUrl>https://github.com/PFalkowski/AzurePostgresFlexibleAutoSleep.git</RepositoryUrl>
